@@ -7,7 +7,6 @@ include_directories(include)
 # Vulkan?
 find_package(Vulkan REQUIRED)
 
-
 # GLFW
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -24,7 +23,7 @@ set(EXEC_SOURCES
 
 set(EXEC_HEADERS
 	"src/Application.h"
-)
+ "src/ApplicationStructs.h")
 
 add_executable (${PROJECT_NAME} ${EXEC_SOURCES} ${EXEC_HEADERS})
 
@@ -33,5 +32,4 @@ target_link_libraries(${PROJECT_NAME}
 	PUBLIC glfw
 	PUBLIC glm::glm
 )
-
 

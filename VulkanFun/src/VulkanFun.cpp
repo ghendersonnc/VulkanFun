@@ -12,14 +12,16 @@
 
 int main()
 {
-	TriangleApp App;
+    TriangleApp App;
 
-	try {
-		App.run();
-	}
-	catch (const std::exception& e) {
-		std::cerr << e.what() << std::endl;
-		return App.exitCode;
-	}
-	return App.exitCode;
+    try
+    {
+        App.run();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
+        return App.exitCode;
+    }
+    return App.exitCode;
 }
