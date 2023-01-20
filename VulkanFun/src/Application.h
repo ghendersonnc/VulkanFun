@@ -1,6 +1,11 @@
 #pragma once
-#include <vulkan/vulkan.hpp>
+
+#define VK_USE_PLATFORM_WIN32_KHR
+
+#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 
 #include <iostream>
 #include <cstdint>
@@ -8,12 +13,17 @@
 #include <stdexcept>
 #include <vector>
 #include <optional>
+#include <set>
 
 #include "ApplicationStructs.h"
 
 
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
+};
+
+const std::vector<const char*> deviceExtensions = {
+       VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
 #ifdef NDEBUG
@@ -55,14 +65,18 @@ private:
     void updateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
     void pickPhysicalDevice();
+    void createSurface();
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
 
     uint16_t m_Width;
     uint16_t m_Height;
     GLFWwindow* m_Window;
+
     VkInstance m_VulkanInstance;
     VkDebugUtilsMessengerEXT m_DebugMessenger;
     VkPhysicalDevice m_PhysicalDevice;
     VkDevice m_LogicalDevice;
     VkQueue m_GraphicsQueue;
+    VkQueue m_PresentQueue;
+    VkSurfaceKHR m_Surface;
 };
