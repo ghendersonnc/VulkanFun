@@ -1,4 +1,15 @@
+// Lots of comments are generally unnecessary but they exist for personal note taking
+
 #include "Application.h"
+VKAPI_ATTR VkBool32 VKAPI_CALL TriangleApp::debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData)
+{
+    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+    return VK_FALSE;
+}
 
 TriangleApp::TriangleApp()
 {
@@ -11,6 +22,7 @@ TriangleApp::TriangleApp()
     m_LogicalDevice = VK_NULL_HANDLE;
     m_GraphicsQueue = VK_NULL_HANDLE;
     m_Surface = VK_NULL_HANDLE;
+    m_PresentQueue = VK_NULL_HANDLE;
 }
 
 TriangleApp::TriangleApp(uint16_t _W, uint16_t _H)
@@ -24,6 +36,7 @@ TriangleApp::TriangleApp(uint16_t _W, uint16_t _H)
     m_LogicalDevice = VK_NULL_HANDLE;
     m_GraphicsQueue = VK_NULL_HANDLE;
     m_Surface = VK_NULL_HANDLE;
+    m_PresentQueue = VK_NULL_HANDLE;
 }
 
 void TriangleApp::run()
@@ -33,19 +46,39 @@ void TriangleApp::run()
     mainLoop();
     cleanup();
 }
-
-VKAPI_ATTR VkBool32 VKAPI_CALL TriangleApp::debugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void* pUserData)
+void TriangleApp::mainLoop()
 {
-    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-    return VK_FALSE;
+    while (!glfwWindowShouldClose(m_Window))
+    {
+
+        glfwPollEvents();
+    }
+}
+void TriangleApp::cleanup()
+{
+    vkDestroyDevice(m_LogicalDevice, nullptr);
+    // DEBUG
+    if (enableValidationLayers)
+    {
+        DestroyDebugUtilsMessengerEXT(m_VulkanInstance, m_DebugMessenger, nullptr);
+    }
+
+    vkDestroySurfaceKHR(m_VulkanInstance, m_Surface, nullptr);
+    vkDestroyInstance(m_VulkanInstance, nullptr);
+
+    glfwDestroyWindow(m_Window);
+    glfwTerminate();
 }
 
+
+
+// VULKAN
 void TriangleApp::initWindow()
 {
+
+    // Init a GLFW window context
+
+
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -57,89 +90,14 @@ void TriangleApp::initWindow()
 void TriangleApp::initVulkan()
 {
     createInstance();
+
+    // This method is for debugging, if in release mode it gets returned immediately
     setupDebugMessenger();
+    //
+
     createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
-}
-
-void TriangleApp::pickPhysicalDevice()
-{
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, nullptr);
-
-    if (deviceCount == 0)
-    {
-        throw std::runtime_error("No GPU With Vulkan Support");
-    }
-
-    std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, devices.data());
-
-    for (const auto& device : devices)
-    {
-        if (isDeviceSuitable(device))
-        {
-            m_PhysicalDevice = device;
-
-            break;
-        }
-    }
-
-    if (m_PhysicalDevice == VK_NULL_HANDLE)
-    {
-        throw std::runtime_error("No suitable GPU found");
-    }
-
-}
-
-bool TriangleApp::isDeviceSuitable(VkPhysicalDevice device)
-{
-    // old
-    /*VkPhysicalDeviceProperties deviceProperties;
-    VkPhysicalDeviceFeatures deviceFeatures;
-    vkGetPhysicalDeviceProperties(device, &deviceProperties);
-    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
-    return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader;*/
-
-    QueueFamilyIndices indices = findQueueFamilies(device);
-    return indices.isCompleted();
-}
-
-
-// queue families
-QueueFamilyIndices TriangleApp::findQueueFamilies(VkPhysicalDevice device)
-{
-    QueueFamilyIndices indices;
-
-    uint32_t queueFamilyCount;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-
-    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
-
-    int i = 0;
-
-    for (const auto& queueFamily : queueFamilies)
-    {
-        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-        {
-            indices.graphicsFamily = i;
-        }
-
-        VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
-
-        if (presentSupport)
-            indices.presentFamily = i;
-
-        if (indices.isCompleted())
-            break;
-
-        i++;
-    }
-
-    return indices;
 }
 
 void TriangleApp::createInstance()
@@ -196,8 +154,72 @@ void TriangleApp::createInstance()
     }
 }
 
+void TriangleApp::createSurface()
+{
+    // Create surface so vulkan can interface with window system
+    // another case of being explicit since Vulkan is cross-platform
+    if (glfwCreateWindowSurface(m_VulkanInstance, m_Window, nullptr, &m_Surface) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create window surface");
+    }
+}
+
+void TriangleApp::pickPhysicalDevice()
+{
+    // Finding a physical device (Vulkan compatible GPU or CPU)
+
+    // Is it necessary to have to run vkEnumeratePhysicalDevices() twice?
+    // Seems like the first call is dtermining the device count so we can initialize a vector size
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, nullptr);
+
+    if (deviceCount == 0)
+    {
+        throw std::runtime_error("No GPU With Vulkan Support");
+    }
+
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, devices.data());
+
+    for (const auto& device : devices)
+    {
+        if (isDeviceSuitable(device))
+        {
+            m_PhysicalDevice = device;
+
+            break;
+        }
+    }
+
+    if (m_PhysicalDevice == VK_NULL_HANDLE)
+    {
+        throw std::runtime_error("No suitable GPU found");
+    }
+
+}
+
+bool TriangleApp::isDeviceSuitable(VkPhysicalDevice device)
+{
+    // old
+    /*VkPhysicalDeviceProperties deviceProperties;
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceProperties(device, &deviceProperties);
+    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+    return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader;*/
+
+    // Only checks for if a device supports graphics operations.
+    // You can alternatively (I am guessing acceptable?) enumerate all devices and choose one with minimum features/properties desired
+    // Most modern GPUs, however, support any device features that fall under VK_QUEUE_GRAPHICS_BIT
+    QueueFamilyIndices indices = findQueueFamilies(device);
+    return indices.isCompleted();
+}
+
 void TriangleApp::createLogicalDevice()
 {
+    // The physical device is obviously the GPU
+    // Logical device is the application representation of the physical device
+    // The logical device interfaces with the physical device
+
     QueueFamilyIndices indices = findQueueFamilies(m_PhysicalDevice);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -214,7 +236,6 @@ void TriangleApp::createLogicalDevice()
         queueCreateInfo.pQueuePriorities = &queuePriority;
         queueCreateInfos.push_back(queueCreateInfo);
     }
-
 
     VkPhysicalDeviceFeatures deviceFeatures{};
     VkDeviceCreateInfo createInfo{};
@@ -245,41 +266,62 @@ void TriangleApp::createLogicalDevice()
     vkGetDeviceQueue(m_LogicalDevice, indices.presentFamily.value(), 0, &m_PresentQueue);
 }
 
-void TriangleApp::createSurface()
+QueueFamilyIndices TriangleApp::findQueueFamilies(VkPhysicalDevice device)
 {
-    if (glfwCreateWindowSurface(m_VulkanInstance, m_Window, nullptr, &m_Surface) != VK_SUCCESS)
+    QueueFamilyIndices indices;
+
+    uint32_t queueFamilyCount;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+    int i = 0;
+
+    for (const auto& queueFamily : queueFamilies)
     {
-        throw std::runtime_error("Failed to create window surface");
+        // Determine if the device in the queue supports graphics operations.
+        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            indices.graphicsFamily = i;
+        }
+
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
+        if (presentSupport)
+            indices.presentFamily = i;
+
+        if (indices.isCompleted())
+            break;
+
+        i++;
     }
+
+    return indices;
 }
 
-void TriangleApp::mainLoop()
+std::vector<const char*> TriangleApp::getRequiredExtensions()
 {
-    while (!glfwWindowShouldClose(m_Window))
-    {
+    uint32_t glfwExtensionCount = 0;
+    const char** glfwExtensions;
+    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-        glfwPollEvents();
-    }
-}
+    std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-void TriangleApp::cleanup()
-{
-    vkDestroyDevice(m_LogicalDevice, nullptr);
-    // DEBUG
+    /* DEBUG */
     if (enableValidationLayers)
     {
-        DestroyDebugUtilsMessengerEXT(m_VulkanInstance, m_DebugMessenger, nullptr);
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
-    vkDestroySurfaceKHR(m_VulkanInstance, m_Surface, nullptr);
-    vkDestroyInstance(m_VulkanInstance, nullptr);
-
-    glfwDestroyWindow(m_Window);
-    glfwTerminate();
+    return extensions;
 }
 
 bool TriangleApp::checkValidationLayerSupport()
 {
+
+    // Checking validation layer support to ensure the validation layers we want are valid
+    // If running an older version of the API (< 1.1.109), it may be missing validation layers I want
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -288,7 +330,6 @@ bool TriangleApp::checkValidationLayerSupport()
 
     for (const char* layerName : validationLayers)
     {
-
         bool layerFound = false;
 
         for (const auto& layerProperties : availableLayers)
@@ -309,24 +350,20 @@ bool TriangleApp::checkValidationLayerSupport()
     return true;
 }
 
-std::vector<const char*> TriangleApp::getRequiredExtensions()
+// DEBUG FUNCTIONS 
+void TriangleApp::setupDebugMessenger()
 {
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions;
-    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    if (!enableValidationLayers) return;
 
-    std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    VkDebugUtilsMessengerCreateInfoEXT createInfo;
+    updateDebugMessengerCreateInfo(createInfo);
 
-    /* DEBUG */
-    if (enableValidationLayers)
+    if (CreateDebugUtilsMessengerEXT(m_VulkanInstance, &createInfo, nullptr, &m_DebugMessenger) != VK_SUCCESS)
     {
-        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        throw std::runtime_error("Could not set up debug messenger;");
     }
 
-    return extensions;
 }
-
-// DEBUG FUNCTIONS 
 
 void TriangleApp::updateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
 {
@@ -337,18 +374,13 @@ void TriangleApp::updateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfo
     createInfo.pfnUserCallback = debugCallback;
 }
 
-void TriangleApp::setupDebugMessenger()
+void TriangleApp::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
 {
-    if (!enableValidationLayers) return;
-
-    VkDebugUtilsMessengerCreateInfoEXT createInfo;
-    updateDebugMessengerCreateInfo(createInfo);
-
-    if (CreateDebugUtilsMessengerEXT(m_VulkanInstance, &createInfo, nullptr, &m_DebugMessenger) != VK_SUCCESS)
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (func != nullptr)
     {
-        throw std::runtime_error("FUCK YOU FUCK You");
+        func(instance, debugMessenger, pAllocator);
     }
-
 }
 
 VkResult CreateDebugUtilsMessengerEXT(
@@ -365,15 +397,6 @@ VkResult CreateDebugUtilsMessengerEXT(
     }
 
     return VK_ERROR_EXTENSION_NOT_PRESENT;
-}
-
-void TriangleApp::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
-{
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr)
-    {
-        func(instance, debugMessenger, pAllocator);
-    }
 }
 // END DEBUG
 
