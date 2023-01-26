@@ -1,5 +1,15 @@
 // Lots of comments are generally unnecessary but they exist for personal note taking
+#include <iostream>
 #include <direct.h>
+#include <cstring>
+#include <stdexcept>
+#include <set>
+#include <limits>
+#include <algorithm>
+#include <fstream>
+
+
+
 #define GetCurrentDir _getcwd
 #include "Application.h"
 VKAPI_ATTR VkBool32 VKAPI_CALL TriangleApp::debugCallback(

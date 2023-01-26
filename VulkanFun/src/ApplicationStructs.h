@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 
 // These structs primarily exist so we only have to query them once and are able to pass them around as needed
 

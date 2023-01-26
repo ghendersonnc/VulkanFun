@@ -7,16 +7,8 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
-#include <iostream>
 #include <cstdint>
-#include <cstring>
-#include <stdexcept>
 #include <vector>
-#include <optional>
-#include <set>
-#include <limits>
-#include <algorithm>
-#include <fstream>
 
 #include "ApplicationStructs.h"
 
