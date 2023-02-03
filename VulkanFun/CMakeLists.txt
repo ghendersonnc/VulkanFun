@@ -1,4 +1,4 @@
-﻿cmake_minimum_required (VERSION 3.21)
+﻿cmake_minimum_required(VERSION 3.21)
 set(PROJECT_NAME VulkanFun)
 set(CMAKE_CXX_STANDARD 20)
 
@@ -16,20 +16,13 @@ add_subdirectory(external/glfw)
 # glm
 add_subdirectory(external/glm)
 
-set(EXEC_SOURCES
-	"src/Application.cpp"
-	"src/VulkanFun.cpp"
-)
+file(GLOB EXEC_SOURCES src/*.cpp)
+file(GLOB EXEC_HEADERS src/*.h src/*.hpp)
 
-set(EXEC_HEADERS
-	"src/Application.h"
- "src/ApplicationStructs.h")
-
-add_executable (${PROJECT_NAME} ${EXEC_SOURCES} ${EXEC_HEADERS})
-
+add_executable(${PROJECT_NAME} ${EXEC_SOURCES} ${EXEC_HEADERS})
 target_link_libraries(${PROJECT_NAME}
-	PUBLIC Vulkan::Vulkan
-	PUBLIC glfw
-	PUBLIC glm::glm
-)
+        PUBLIC Vulkan::Vulkan
+        PUBLIC glfw
+        PUBLIC glm::glm
+        )
 

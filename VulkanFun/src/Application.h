@@ -1,20 +1,7 @@
 #pragma once
-
-#define VK_USE_PLATFORM_WIN32_KHR
-
-#define GLFW_INCLUDE_VULKAN
-
-#include <GLFW/glfw3.h>
-
-#define GLFW_EXPOSE_NATIVE_WIN32
-
-#include <GLFW/glfw3native.h>
-
-#include <cstdint>
-#include <vector>
-
+#include "config.h"
 #include "ApplicationStructs.h"
-
+#include "Shapes.hpp"
 
 const std::vector<const char *> VALIDATION_LAYERS = {
         "VK_LAYER_KHRONOS_validation"
@@ -23,7 +10,6 @@ const std::vector<const char *> VALIDATION_LAYERS = {
 const std::vector<const char *> DEVICE_EXTENSIONS = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
-
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
 #ifdef NDEBUG
@@ -90,6 +76,10 @@ private:
     bool m_FrameBufferResized = false;
     uint32_t m_CurrentFrame = 0;
 
+    VkBuffer m_VertexBuffer;
+    VkDeviceMemory m_VertexBufferMemory;
+    VkBuffer m_IndexBuffer;
+    VkDeviceMemory m_IndexBufferMemory;
     bool checkValidationLayerSupport();
 
     bool isDeviceSuitable(VkPhysicalDevice device);
@@ -159,4 +149,13 @@ private:
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
     void drawFrame();
+
+    void createVertexBuffer();
+    
+    void createIndexBuffer();
+
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+    void copyBuffer(VkBuffer sourceBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 };

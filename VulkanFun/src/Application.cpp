@@ -1,16 +1,3 @@
-// Lots of comments are generally unnecessary but they exist for personal note taking
-#include <iostream>
-#include <direct.h>
-#include <cstring>
-#include <stdexcept>
-#include <set>
-#include <limits>
-#include <algorithm>
-#include <fstream>
-
-
-#define GetCurrentDir _getcwd
-
 #include "Application.h"
 
 VKAPI_ATTR VkBool32 VKAPI_CALL TriangleApp::debugCallback(
@@ -37,6 +24,8 @@ TriangleApp::TriangleApp()
     m_PresentQueue = VK_NULL_HANDLE;
     m_SwapChain = VK_NULL_HANDLE;
     m_SwapChainImageFormat = VK_FORMAT_UNDEFINED;
+    m_VertexBuffer = VK_NULL_HANDLE;
+    m_VertexBufferMemory = VK_NULL_HANDLE;
 
 }
 
@@ -54,6 +43,8 @@ TriangleApp::TriangleApp(uint16_t w, uint16_t h)
     m_PresentQueue = VK_NULL_HANDLE;
     m_SwapChain = VK_NULL_HANDLE;
     m_SwapChainImageFormat = VK_FORMAT_UNDEFINED;
+    m_VertexBuffer = VK_NULL_HANDLE;
+    m_VertexBufferMemory = VK_NULL_HANDLE;
 }
 
 void TriangleApp::run()
@@ -75,7 +66,6 @@ void TriangleApp::mainLoop()
 
     vkDeviceWaitIdle(m_LogicalDevice);
 }
-
 
 void TriangleApp::drawFrame()
 {
@@ -155,6 +145,15 @@ void TriangleApp::drawFrame()
 void TriangleApp::cleanup()
 {
     cleanupSwapChain();
+
+    vkDestroyBuffer(m_LogicalDevice, m_IndexBuffer, nullptr);
+    vkFreeMemory(m_LogicalDevice, m_VertexBufferMemory, nullptr);
+
+    vkDestroyBuffer(m_LogicalDevice, m_VertexBuffer, nullptr);
+    vkFreeMemory(m_LogicalDevice, m_VertexBufferMemory, nullptr);
+
+
+
     vkDestroyPipeline(m_LogicalDevice, m_GraphicsPipeline, nullptr);
     vkDestroyPipelineLayout(m_LogicalDevice, m_PipelineLayout, nullptr);
     vkDestroyRenderPass(m_LogicalDevice, m_RenderPass, nullptr);
@@ -165,7 +164,6 @@ void TriangleApp::cleanup()
         vkDestroySemaphore(m_LogicalDevice, m_RenderFinishedSemaphores[i], nullptr);
         vkDestroyFence(m_LogicalDevice, m_InFlightFences[i], nullptr);
     }
-
 
     vkDestroyCommandPool(m_LogicalDevice, m_CommandPool, nullptr);
 
@@ -228,6 +226,8 @@ void TriangleApp::initVulkan()
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
+    createVertexBuffer();
+    createIndexBuffer();
     createCommandBuffers();
     createSyncObjects();
 
@@ -721,12 +721,22 @@ void TriangleApp::createGraphicsPipeline()
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputInfo.vertexBindingDescriptionCount = 0;
     vertexInputInfo.pVertexBindingDescriptions = nullptr;
     vertexInputInfo.vertexAttributeDescriptionCount = 0;
     vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -931,7 +941,7 @@ void TriangleApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = m_SwapChainExtent;
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f}}};
+    VkClearValue clearColor = {{{0.1f, 0.02f, 0.11f}}};
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
 
@@ -952,7 +962,13 @@ void TriangleApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
     scissor.offset = {0, 0};
     scissor.extent = m_SwapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+    VkBuffer vertexBuffers[] = {m_VertexBuffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(Shapes::RECTANGLE_INDICES.size()), 1, 0, 0, 0);
     // END RENDERPASS
     vkCmdEndRenderPass(commandBuffer);
 
@@ -961,6 +977,8 @@ void TriangleApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
         throw std::runtime_error("failed to record command buffer");
     }
 }
+
+
 
 void TriangleApp::createSyncObjects()
 {
@@ -1003,6 +1021,128 @@ VkShaderModule TriangleApp::createShaderModule(const std::vector<char> &code)
     }
 
     return shaderModule;
+}
+
+void TriangleApp::createVertexBuffer()
+{
+    VkDeviceSize bufferSize = sizeof(Shapes::RECTANGLE[0]) * Shapes::RECTANGLE.size();
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, Shapes::RECTANGLE.data(), (size_t) bufferSize);
+    vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_VertexBuffer, m_VertexBufferMemory);
+    copyBuffer(stagingBuffer, m_VertexBuffer, bufferSize);
+
+    vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
+    vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
+}
+
+void TriangleApp::createIndexBuffer()
+{
+    VkDeviceSize bufferSize = sizeof(Shapes::RECTANGLE_INDICES[0]) * Shapes::RECTANGLE_INDICES.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, Shapes::RECTANGLE_INDICES.data(), (size_t) bufferSize);
+    vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_IndexBuffer, m_IndexBufferMemory);
+
+    copyBuffer(stagingBuffer, m_IndexBuffer, bufferSize);
+
+    vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
+    vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
+}
+
+void TriangleApp::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(m_LogicalDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create vertex buffer");
+    }
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(m_LogicalDevice, buffer, &memoryRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memoryRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(m_LogicalDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate vertex buffer memory");
+    }
+
+    vkBindBufferMemory(m_LogicalDevice, buffer, bufferMemory, 0);
+}
+
+void TriangleApp::copyBuffer(VkBuffer sourceBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+{
+    VkCommandBufferAllocateInfo allocInfo{};
+
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = m_CommandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(m_LogicalDevice, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion{};
+    copyRegion.srcOffset = 0;
+    copyRegion.dstOffset = 0;
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, sourceBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_GraphicsQueue);
+    vkFreeCommandBuffers(m_LogicalDevice, m_CommandPool, 1, &commandBuffer);
+}
+
+uint32_t TriangleApp::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memoryProperties);
+
+    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
+    {
+        // whar?
+        if (typeFilter & (1 << i) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("Failed to find suitable memory type");
 }
 
 //STATIC
@@ -1110,7 +1250,7 @@ bool TriangleApp::checkValidationLayerSupport()
     return true;
 }
 
-// DEBUG FUNCTIONS 
+// DEBUG FUNCTIONS
 void TriangleApp::setupDebugMessenger()
 {
     if (!enableValidationLayers) return;
