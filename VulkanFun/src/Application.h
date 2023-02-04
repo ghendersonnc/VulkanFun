@@ -62,6 +62,7 @@ private:
 
     VkRenderPass m_RenderPass{};
 
+    VkDescriptorSetLayout m_DescriptorSetLayout;
     VkPipelineLayout m_PipelineLayout{};
 
     VkPipeline m_GraphicsPipeline{};
@@ -80,6 +81,13 @@ private:
     VkDeviceMemory m_VertexBufferMemory;
     VkBuffer m_IndexBuffer;
     VkDeviceMemory m_IndexBufferMemory;
+    std::vector<VkBuffer> m_UniformBuffers;
+    std::vector<VkDeviceMemory> m_UniformBuffersMemory;
+    std::vector<void*> m_UniformBuffersMapped;
+    VkDescriptorPool m_DescriptorPool;
+    std::vector<VkDescriptorSet> m_DescriptorSets;
+
+
     bool checkValidationLayerSupport();
 
     bool isDeviceSuitable(VkPhysicalDevice device);
@@ -158,4 +166,10 @@ private:
 
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
     void copyBuffer(VkBuffer sourceBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void createDescriptorSetLayout();
+    void createUniformBuffers();
+    void updateUniformBuffer(uint32_t currentImage);
+    void createDescriptorPool();
+
+    void createDescriptorSets();
 };
