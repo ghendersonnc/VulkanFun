@@ -5,8 +5,6 @@
 
 #include <iostream>
 #include <stdexcept>
-#include <cstdlib>
-#include <glm/glm.hpp>
 
 #include "Application.h"
 
