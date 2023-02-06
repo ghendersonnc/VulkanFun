@@ -368,3 +368,5 @@ cmake-build-release/
 **/.idea/workspace.xml
 **/.idea/usage.statistics.xml
 **/.idea/*.iws
+
+./VulkanFun/src/textures/*

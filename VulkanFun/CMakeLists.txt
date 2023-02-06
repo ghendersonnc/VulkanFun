@@ -16,6 +16,10 @@ add_subdirectory(external/glfw)
 # glm
 add_subdirectory(external/glm)
 
+# stb image
+add_library(stb_image STATIC include/stb_image/std_image.cpp)
+target_include_directories(stb_image PUBLIC include/stb_image)
+
 file(GLOB EXEC_SOURCES src/*.cpp)
 file(GLOB EXEC_HEADERS src/*.h src/*.hpp)
 
@@ -24,5 +28,6 @@ target_link_libraries(${PROJECT_NAME}
         PUBLIC Vulkan::Vulkan
         PUBLIC glfw
         PUBLIC glm::glm
+        PUBLIC stb_image
         )
 

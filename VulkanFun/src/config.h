@@ -11,6 +11,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <stb_image/stb_image.h>
 #include <iostream>
 #include <direct.h>
 #include <cstring>
@@ -21,3 +22,4 @@
 #include <fstream>
 #include <vector>
 #include <chrono>
+
