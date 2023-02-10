@@ -13,10 +13,10 @@ namespace Shapes
     // we only need to write the unique vertices once per "real" vertex (the 4 corners of the rectangle)
     // The vertices here are in CLOCKWISE order
     const std::vector<Vertex> RECTANGLE = {
-            {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}}, // TOP LEFT
-            {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}}, // TOP RIGHT
-            {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}, // BOTTOM RIGHT
-            {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}} // BOTTOM LEFT
+            {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // TOP LEFT
+            {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // TOP RIGHT
+            {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // BOTTOM RIGHT
+            {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}} // BOTTOM LEFT
     };
 
     const std::vector<uint16_t> RECTANGLE_INDICES = {
