@@ -91,6 +91,10 @@ private:
     VkImageView m_TextureImageView;
     VkSampler m_TextureSampler;
 
+    VkImage m_DepthImage;
+    VkDeviceMemory m_DepthImageMemory;
+    VkImageView m_DepthImageView;
+
     bool checkValidationLayerSupport();
 
     bool isDeviceSuitable(VkPhysicalDevice device);
@@ -182,6 +186,10 @@ private:
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
     void createTextureImageView();
-    VkImageView createImageView(VkImage image, VkFormat format);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     void createTextureSampler();
+    void createDepthResources();
+    VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+    VkFormat findDepthFormat();
+    bool hasStencilComponent(VkFormat format);
 };
