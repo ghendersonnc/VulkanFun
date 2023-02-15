@@ -382,6 +382,10 @@ void TriangleApp::createSwapChain()
 
 void TriangleApp::cleanupSwapChain()
 {
+    vkDestroyImageView(m_LogicalDevice, m_DepthImageView, nullptr);
+    vkDestroyImage(m_LogicalDevice, m_DepthImage, nullptr);
+    vkFreeMemory(m_LogicalDevice, m_DepthImageMemory, nullptr);
+
     for (auto& m_SwapChainFramebuffer : m_SwapChainFramebuffers)
     {
         vkDestroyFramebuffer(m_LogicalDevice, m_SwapChainFramebuffer, nullptr);
@@ -414,6 +418,7 @@ void TriangleApp::recreateSwapChain()
 
     createSwapChain();
     createImageViews();
+    createDepthResources();
     createFramebuffers();
 }
 
