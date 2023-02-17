@@ -12,6 +12,12 @@ const std::vector<const char *> DEVICE_EXTENSIONS = {
 };
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
+const uint32_t WIDTH = 800;
+const uint32_t HEIGHT = 600;
+
+const std::string MODEL_PATH = "src/assets/viking_room.obj";
+const std::string TEXTURE_PATH = "src/assets/viking_room.png";
+
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
@@ -77,6 +83,8 @@ private:
     bool m_FrameBufferResized = false;
     uint32_t m_CurrentFrame = 0;
 
+    std::vector<Vertex> m_Vertices;
+    std::vector<uint32_t> m_Indices;
     VkBuffer m_VertexBuffer;
     VkDeviceMemory m_VertexBufferMemory;
     VkBuffer m_IndexBuffer;
@@ -192,4 +200,5 @@ private:
     VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
     VkFormat findDepthFormat();
     bool hasStencilComponent(VkFormat format);
+    void loadModel();
 };

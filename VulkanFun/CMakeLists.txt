@@ -16,8 +16,12 @@ add_subdirectory(external/glfw)
 # glm
 add_subdirectory(external/glm)
 
+# tinyobjloader
+add_library(tinyobjloader STATIC include/tinyobjloader/tiny_obj_loader.cpp)
+target_include_directories(tinyobjloader PUBLIC include/tinyobjloader)
+
 # stb image
-add_library(stb_image STATIC include/stb_image/std_image.cpp)
+add_library(stb_image STATIC "include/stb_image/std_image.cpp")
 target_include_directories(stb_image PUBLIC include/stb_image)
 
 file(GLOB EXEC_SOURCES src/*.cpp)
@@ -29,5 +33,6 @@ target_link_libraries(${PROJECT_NAME}
         PUBLIC glfw
         PUBLIC glm::glm
         PUBLIC stb_image
+        PUBLIC tinyobjloader
         )
 

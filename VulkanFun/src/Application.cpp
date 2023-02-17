@@ -1,6 +1,11 @@
 #include "Application.h"
 #include <filesystem>
+#include <unordered_map>
+
+
 namespace fs = std::filesystem;
+
+
 VKAPI_ATTR VkBool32 VKAPI_CALL TriangleApp::debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -243,6 +248,7 @@ void TriangleApp::initVulkan()
     createTextureImage();
     createTextureImageView();
     createTextureSampler();
+    loadModel();
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();
@@ -742,6 +748,7 @@ void TriangleApp::createGraphicsPipeline()
     // Almost all of these structs are obviously unused here, but they'll be used eventually.
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+    //vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
     vertShaderStageInfo.module = vertShaderModule;
@@ -1026,12 +1033,14 @@ void TriangleApp::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    //vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_PipelineLayout, 0, 1, &m_DescriptorSets[m_CurrentFrame], 0, nullptr);
 
     //vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(Shapes::RECTANGLE_INDICES.size()), 1, 0, 0, 0);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(Shapes::CUBE_INDICES.size()), 1, 0, 0, 0);
+    //vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(Shapes::cube_indices.size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_Indices.size()), 1, 0, 0, 0);
     //vkCmdDraw(commandBuffer, 3, 1, 0, 0);
     // END RENDERPASS
     vkCmdEndRenderPass(commandBuffer);
@@ -1085,10 +1094,56 @@ VkShaderModule TriangleApp::createShaderModule(const std::vector<char>& code)
     return shaderModule;
 }
 
+void TriangleApp::loadModel()
+{
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn, err;
+
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, MODEL_PATH.c_str()))
+    {
+        throw std::runtime_error(warn + err);
+    }
+
+    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+    for (const auto& shape : shapes)
+    {
+        for (const auto& index : shape.mesh.indices)
+        {
+            Vertex vertex{};
+
+            vertex.pos = {
+                attrib.vertices[3 * index.vertex_index + 0],
+                attrib.vertices[3 * index.vertex_index + 1],
+                attrib.vertices[3 * index.vertex_index + 2]
+            };
+
+            vertex.texCoord = {
+                attrib.texcoords[2 * index.texcoord_index + 0],
+                1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+            };
+
+            vertex.color = { 1.0f, 1.0f, 1.0f };
+
+            if (uniqueVertices.count(vertex) == 0)
+            {
+                uniqueVertices[vertex] = static_cast<uint32_t>(m_Vertices.size());
+                m_Vertices.push_back(vertex);
+            }
+
+            m_Indices.push_back(uniqueVertices[vertex]);
+        }
+    }
+}
+
+
 void TriangleApp::createVertexBuffer()
 {
     //VkDeviceSize bufferSize = sizeof(Shapes::RECTANGLE[0]) * Shapes::RECTANGLE.size();
-    VkDeviceSize bufferSize = sizeof(Shapes::CUBE[0]) * Shapes::CUBE.size();
+    //VkDeviceSize bufferSize = sizeof(Shapes::cube[0]) * Shapes::cube.size();
+    VkDeviceSize bufferSize = sizeof(m_Vertices[0]) * m_Vertices.size();
     //VkDeviceSize bufferSize = sizeof(Shapes::TRIANGLE[0]) * Shapes::TRIANGLE.size();
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -1096,7 +1151,8 @@ void TriangleApp::createVertexBuffer()
 
     void* data;
     vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, Shapes::CUBE.data(), (size_t)bufferSize);
+    //memcpy(data, Shapes::cube.data(), (size_t)bufferSize);
+    memcpy(data, m_Vertices.data(), (size_t)bufferSize);
     //memcpy(data, Shapes::RECTANGLE.data(), (size_t) bufferSize);
     //memcpy(data, Shapes::TRIANGLE.data(), (size_t) bufferSize);
     vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
@@ -1111,7 +1167,8 @@ void TriangleApp::createVertexBuffer()
 void TriangleApp::createIndexBuffer()
 {
     //VkDeviceSize bufferSize = sizeof(Shapes::RECTANGLE_INDICES[0]) * Shapes::RECTANGLE_INDICES.size();
-    VkDeviceSize bufferSize = sizeof(Shapes::CUBE_INDICES[0]) * Shapes::CUBE_INDICES.size();
+    //VkDeviceSize bufferSize = sizeof(Shapes::cube_indices[0]) * Shapes::cube_indices.size();
+    VkDeviceSize bufferSize = sizeof(m_Indices[0]) * m_Indices.size();
 
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
@@ -1120,7 +1177,8 @@ void TriangleApp::createIndexBuffer()
     void* data;
     vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
     //memcpy(data, Shapes::RECTANGLE_INDICES.data(), (size_t) bufferSize);
-    memcpy(data, Shapes::CUBE_INDICES.data(), (size_t)bufferSize);
+    //memcpy(data, Shapes::cube_indices.data(), (size_t)bufferSize);
+    memcpy(data, m_Indices.data(), (size_t)bufferSize);
     vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
 
     createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_IndexBuffer, m_IndexBufferMemory);
@@ -1493,7 +1551,8 @@ void TriangleApp::createDescriptorSets()
 void TriangleApp::createTextureImage()
 {
     int textureWidth, textureHeight, textureChannels;
-    stbi_uc* pixels = stbi_load("textures/texture.png", &textureWidth, &textureHeight, &textureChannels, STBI_rgb_alpha);
+    //stbi_uc* pixels = stbi_load("textures/texture.png", &textureWidth, &textureHeight, &textureChannels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &textureWidth, &textureHeight, &textureChannels, STBI_rgb_alpha);
     VkDeviceSize imageSize = textureWidth * textureHeight * 4;
     if (!pixels)
     {
